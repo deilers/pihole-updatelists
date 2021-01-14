@@ -33,3 +33,44 @@ done
 
 echo "Pushing manifest ${IMAGE_NAME}"
 docker manifest push --purge "${IMAGE_NAME}"
+
+# Versioned tags (only for 'latest' tag)
+if [ "$(echo $IMAGE_NAME | cut -f2 -d":")" == "latest" ]; then
+  SCRIPT_MD5=$(md5sum pihole-updatelists.php)
+  CURRENT_DATE=$(date '+%Y%m%d%H%M')
+  IMAGE_NAME_VERSIONED=$(echo $IMAGE_NAME | cut -f1 -d":"):$SCRIPT_MD5
+  #IMAGE_NAME_VERSIONED=$IMAGE_NAME-$(date '+%Y%m%d%H%M')
+
+  for ARCH in ${ARCHITECTURES_TO_BUILD[@]}; do
+    echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
+    echo "Tagging ${IMAGE_NAME_VERSIONED}-${ARCH} (${IMAGE_NAME}-${ARCH})"
+    docker tag ${IMAGE_NAME}-${ARCH} ${IMAGE_NAME_VERSIONED}-${ARCH}
+    echo "Pushing ${IMAGE_NAME_VERSIONED}-${ARCH}"
+    docker push ${IMAGE_NAME_VERSIONED}-${ARCH}
+  done
+
+  echo "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯"
+  echo "Creating manifest ${IMAGE_NAME_VERSIONED}"
+  manifests=""
+  for ARCH in ${ARCHITECTURES_TO_BUILD[@]}; do
+    manifests="${manifests} ${IMAGE_NAME_VERSIONED}-${ARCH}"
+  done
+  docker manifest create ${IMAGE_NAME_VERSIONED} $manifests
+
+  for ARCH in ${ARCHITECTURES_TO_BUILD[@]}; do
+    VARIANT=
+    if [ "${manifest_variant_map[${ARCH}]}" != "" ]; then
+      VARIANT="--variant ${manifest_variant_map[${ARCH}]}"
+    fi
+
+    echo "Annotating manifest for ${IMAGE_NAME_VERSIONED}-${ARCH}"
+    docker manifest annotate ${IMAGE_NAME_VERSIONED} \
+      ${IMAGE_NAME_VERSIONED}-${ARCH} \
+      --os linux \
+      --arch ${manifest_architecture_map[${ARCH}]} \
+      $VARIANT
+  done
+
+  echo "Pushing manifest ${IMAGE_NAME_VERSIONED}"
+  docker manifest push --purge "${IMAGE_NAME_VERSIONED}"
+fi
