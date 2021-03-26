@@ -3,7 +3,8 @@ FROM pihole/pihole:latest
 COPY install.sh pihole-updatelists.* /tmp/pihole-updatelists/
 
 RUN apt-get update && \
-    apt-get install -Vy php-cli php-sqlite3 php-intl php-curl && \
+    apt-get upgrade -Vy && \
+    apt-get install -Vy php-cli php-sqlite3 php-intl php-curl nano && \
     apt-get clean && \
     rm -fr /var/cache/apt/* /var/lib/apt/lists/*.lz4
 
